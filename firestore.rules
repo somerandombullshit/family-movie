@@ -1,0 +1,185 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny all reads and writes by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwnerEmail() {
+      return isVerifiedUser() && request.auth.token.email == 'poojith132photography@gmail.com';
+    }
+
+    function isAdmin() {
+      return isOwnerEmail() || (isVerifiedUser() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isOptionalString(data, field, maxLen) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isValidMovie(data) {
+      return data.keys().hasAll(['title', 'fileName', 'sourceType', 'hidden', 'addedByUid', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'title', 'fileName', 'sourceType', 'driveFileId', 'shareUrl', 'fsId', 'uk', 'shareId',
+          'directUrl', 'thumbnailUrl', 'sizeBytes', 'durationLabel', 'hidden',
+          'addedByUid', 'createdAt', 'updatedAt'
+        ])
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 300
+        && data.sourceType is string && data.sourceType in ['gdrive_file', 'terabox_share', 'terabox_drive', 'direct_url']
+        && isOptionalString(data, 'driveFileId', 128)
+        && isOptionalString(data, 'shareUrl', 1000)
+        && isOptionalString(data, 'fsId', 64)
+        && isOptionalString(data, 'uk', 64)
+        && isOptionalString(data, 'shareId', 64)
+        && isOptionalString(data, 'directUrl', 2000)
+        && isOptionalString(data, 'thumbnailUrl', 2000)
+        && (!('sizeBytes' in data) || (data.sizeBytes is number && data.sizeBytes >= 0))
+        && isOptionalString(data, 'durationLabel', 40)
+        && data.hidden is bool
+        && data.addedByUid is string && isValidId(data.addedByUid)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidLibrarySettings(data) {
+      return data.keys().hasAll(['connectionMode', 'updatedByUid', 'updatedAt'])
+        && data.keys().hasOnly(['connectionMode', 'shareUrl', 'folderPath', 'updatedByUid', 'updatedAt'])
+        && data.connectionMode is string && data.connectionMode in ['gdrive_folder', 'share_folder', 'drive_cookie', 'manual']
+        && isOptionalString(data, 'shareUrl', 1000)
+        && isOptionalString(data, 'folderPath', 300)
+        && data.updatedByUid is string && isValidId(data.updatedByUid)
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminSecret(data) {
+      return data.keys().hasAll(['updatedByUid', 'updatedAt'])
+        && data.keys().hasOnly(['ndusCookie', 'passcode', 'folderPath', 'updatedByUid', 'updatedAt'])
+        && isOptionalString(data, 'ndusCookie', 2000)
+        && isOptionalString(data, 'passcode', 16)
+        && isOptionalString(data, 'folderPath', 300)
+        && data.updatedByUid is string && isValidId(data.updatedByUid)
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['email', 'addedAt'])
+        && data.keys().hasOnly(['email', 'addedAt'])
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 256
+        && data.addedAt is timestamp;
+    }
+
+    // Family movie catalog: public read for non-hidden movies, admin-only write
+    match /movies/{movieId} {
+      allow get: if isValidId(movieId) && (resource == null || existing().hidden == false || isAdmin());
+      allow list: if existing().hidden == false || isOwnerEmail();
+
+      allow create: if isAdmin()
+        && isValidId(movieId)
+        && isValidMovie(incoming())
+        && incoming().addedByUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isAdmin()
+        && isValidId(movieId)
+        && isValidMovie(incoming())
+        && incoming().addedByUid == existing().addedByUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'fileName', 'sourceType', 'driveFileId', 'shareUrl', 'fsId', 'uk', 'shareId',
+          'directUrl', 'thumbnailUrl', 'sizeBytes', 'durationLabel', 'hidden', 'updatedAt'
+        ]);
+
+      allow delete: if isAdmin() && isValidId(movieId);
+    }
+
+    // Non-secret folder connection metadata (publicly readable by family app for auto-sync)
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if false;
+
+      allow create: if isAdmin()
+        && isValidId(settingId)
+        && isValidLibrarySettings(incoming())
+        && incoming().updatedByUid == request.auth.uid
+        && incoming().updatedAt == request.time;
+
+      allow update: if isAdmin()
+        && isValidId(settingId)
+        && isValidLibrarySettings(incoming())
+        && incoming().updatedByUid == request.auth.uid
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'connectionMode', 'shareUrl', 'folderPath', 'updatedByUid', 'updatedAt'
+        ]);
+
+      allow delete: if isAdmin() && isValidId(settingId);
+    }
+
+    // Private TeraBox credentials (ndus cookie / share passcode): strict admin-only access
+    match /admin_secrets/{secretId} {
+      allow get: if isAdmin() && isValidId(secretId);
+      allow list: if false;
+
+      allow create: if isAdmin()
+        && isValidId(secretId)
+        && isValidAdminSecret(incoming())
+        && incoming().updatedByUid == request.auth.uid
+        && incoming().updatedAt == request.time;
+
+      allow update: if isAdmin()
+        && isValidId(secretId)
+        && isValidAdminSecret(incoming())
+        && incoming().updatedByUid == request.auth.uid
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'ndusCookie', 'passcode', 'folderPath', 'updatedByUid', 'updatedAt'
+        ]);
+
+      allow delete: if isAdmin() && isValidId(secretId);
+    }
+
+    // Admin allowlist (bootstrapped owner only for writes)
+    match /admins/{adminUid} {
+      allow get: if isValidId(adminUid) && (isOwnerEmail() || (isVerifiedUser() && request.auth.uid == adminUid));
+      allow list: if false;
+
+      allow create: if isOwnerEmail()
+        && isValidId(adminUid)
+        && isValidAdminUser(incoming())
+        && incoming().addedAt == request.time;
+
+      allow update: if isOwnerEmail()
+        && isValidId(adminUid)
+        && isValidAdminUser(incoming())
+        && incoming().addedAt == existing().addedAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['email']);
+
+      allow delete: if isOwnerEmail() && isValidId(adminUid);
+    }
+  }
+}

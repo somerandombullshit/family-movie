@@ -1,0 +1,6 @@
+{
+  "name": "Family Cinema",
+  "description": "A minimal, senior-friendly movie player connected to TeraBox so parents can easily watch uploaded movies.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

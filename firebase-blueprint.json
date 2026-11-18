@@ -1,0 +1,200 @@
+{
+  "entities": {
+    "Movie": {
+      "title": "Movie",
+      "description": "A video entry synced from Google Drive or TeraBox, or added by the admin for family playback.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Clean movie title displayed in large text to parents."
+        },
+        "fileName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "Original filename from Google Drive or TeraBox."
+        },
+        "sourceType": {
+          "type": "string",
+          "enum": ["gdrive_file", "terabox_share", "terabox_drive", "direct_url"],
+          "description": "Where the video stream originates."
+        },
+        "driveFileId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Google Drive file ID if sourced from Google Drive."
+        },
+        "shareUrl": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Share URL from Google Drive or TeraBox."
+        },
+        "fsId": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "TeraBox fs_id identifier."
+        },
+        "uk": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "TeraBox uk identifier."
+        },
+        "shareId": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "TeraBox shareid identifier."
+        },
+        "directUrl": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Direct video URL if added manually."
+        },
+        "thumbnailUrl": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Thumbnail image URL."
+        },
+        "sizeBytes": {
+          "type": "number",
+          "description": "File size in bytes."
+        },
+        "durationLabel": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Optional human-readable duration."
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "Whether the movie is hidden from the family screen."
+        },
+        "addedByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the admin who added or synced the movie."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": ["title", "fileName", "sourceType", "hidden", "addedByUid", "createdAt", "updatedAt"]
+    },
+    "LibrarySettings": {
+      "title": "LibrarySettings",
+      "description": "Non-secret folder connection metadata for automatic movie syncing.",
+      "type": "object",
+      "properties": {
+        "connectionMode": {
+          "type": "string",
+          "enum": ["gdrive_folder", "share_folder", "drive_cookie", "manual"],
+          "description": "Active cloud folder connection mode."
+        },
+        "shareUrl": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Public Google Drive or TeraBox shared folder URL."
+        },
+        "folderPath": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Folder path or label."
+        },
+        "updatedByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Admin UID who updated settings."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": ["connectionMode", "updatedByUid", "updatedAt"]
+    },
+    "AdminSecret": {
+      "title": "AdminSecret",
+      "description": "Private TeraBox credentials (ndus cookie, folder passcode) accessible only to admin.",
+      "type": "object",
+      "properties": {
+        "ndusCookie": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "TeraBox ndus session cookie."
+        },
+        "passcode": {
+          "type": "string",
+          "maxLength": 16,
+          "description": "Optional TeraBox share extraction passcode."
+        },
+        "folderPath": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Private TeraBox drive folder path."
+        },
+        "updatedByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Admin UID."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": ["updatedByUid", "updatedAt"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized admin record.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "maxLength": 256,
+          "description": "Admin email."
+        },
+        "addedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp."
+        }
+      },
+      "required": ["email", "addedAt"]
+    }
+  },
+  "firestore": {
+    "/movies/{movieId}": {
+      "schema": { "$ref": "#/entities/Movie" },
+      "description": "Movie catalog readable by family viewers and writable only by admin."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/LibrarySettings" },
+      "description": "Public library sync settings document (e.g., library)."
+    },
+    "/admin_secrets/{secretId}": {
+      "schema": { "$ref": "#/entities/AdminSecret" },
+      "description": "Private TeraBox cookie/passcode secrets readable and writable only by admin."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Authorized admin UIDs."
+    }
+  }
+}

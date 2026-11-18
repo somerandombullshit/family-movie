@@ -1,7 +1,6 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
-import { getQueryParams, openGoogleDriveDownloadStream, sendJson } from '../../lib/cloud-media';
+import { getQueryParams, openGoogleDriveDownloadStream, sendJson } from '../../lib/cloud-media.js';
 
-export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+export default async function handler(req, res) {
   const query = getQueryParams(req);
   const fileId = query.get('driveFileId') || '';
   if (!fileId || !/^[a-zA-Z0-9_-]{10,128}$/.test(fileId)) {

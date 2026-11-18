@@ -1,10 +1,6 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
-import { collectMoviesFromGoogleDriveFolder, readJsonBody, sendJson } from '../../lib/cloud-media';
+import { collectMoviesFromGoogleDriveFolder, readJsonBody, sendJson } from '../../lib/cloud-media.js';
 
-export default async function handler(
-  req: IncomingMessage & { body?: unknown },
-  res: ServerResponse
-): Promise<void> {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     sendJson(res, 405, { error: 'Method not allowed' });
     return;

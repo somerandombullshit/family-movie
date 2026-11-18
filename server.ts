@@ -16,7 +16,7 @@ import {
   resolveTeraBoxStream,
   rewriteM3u8Playlist,
   setTeraBoxSessionConfig,
-} from './lib/cloud-media.ts';
+} from './lib/cloud-media.js';
 
 dotenv.config();
 
@@ -246,10 +246,12 @@ async function startServer() {
         return;
       }
 
-      const upstreamHeaders: Record<string, string> = { ...resolved.headers };
+      const upstreamHeaders: Record<string, string> = {
+        ...((resolved.headers || {}) as Record<string, string>),
+      };
       if (req.headers.range) upstreamHeaders['Range'] = req.headers.range;
 
-      const upstream = await fetch(resolved.streamUrl, {
+      const upstream = await fetch(resolved.streamUrl || '', {
         method: 'GET',
         redirect: 'follow',
         headers: upstreamHeaders,

@@ -1,4 +1,3 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   BROWSER_UA,
   collectMoviesFromDrive,
@@ -11,14 +10,9 @@ import {
   rewriteM3u8Playlist,
   sendJson,
   setTeraBoxSessionConfig,
-} from '../lib/cloud-media';
+} from '../lib/cloud-media.js';
 
-type VercelRequest = IncomingMessage & {
-  body?: unknown;
-  query?: Record<string, string | string[] | undefined>;
-};
-
-export default async function handler(req: VercelRequest, res: ServerResponse): Promise<void> {
+export default async function handler(req, res) {
   const query = getQueryParams(req);
   const qAction = query.get('action') || (typeof req.query?.action === 'string' ? req.query.action : '');
   const pathname = new URL(req.url || '/', 'http://localhost').pathname;

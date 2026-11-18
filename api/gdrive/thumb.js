@@ -1,7 +1,6 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
-import { BROWSER_UA, getQueryParams } from '../../lib/cloud-media';
+import { BROWSER_UA, getQueryParams } from '../../lib/cloud-media.js';
 
-export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+export default async function handler(req, res) {
   const query = getQueryParams(req);
   const fileId = query.get('fileId') || '';
   if (!fileId || !/^[a-zA-Z0-9_-]{10,128}$/.test(fileId)) {

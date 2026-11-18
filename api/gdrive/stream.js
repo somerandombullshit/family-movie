@@ -1,6 +1,6 @@
 import { getQueryParams, openGoogleDriveDownloadStream, sendJson } from '../../lib/cloud-media.js';
 
-const MAX_VERCEL_CHUNK_BYTES = 2621440; // 2.5 MB per 206 Partial Content response
+const MAX_VERCEL_CHUNK_BYTES = 3932160; // 3.75 MB per 206 Partial Content response (safely under Vercel 4.5 MB cap)
 
 function resolveVideoContentType(rawType, fileName) {
   if (rawType && !rawType.includes('octet-stream') && !rawType.includes('text/')) {

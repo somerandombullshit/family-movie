@@ -31,6 +31,7 @@ export function VideoPlayerView({ movie, onBack }: VideoPlayerViewProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
   const [duration, setDuration] = useState(0);
   const [isBuffering, setIsBuffering] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -238,10 +239,12 @@ export function VideoPlayerView({ movie, onBack }: VideoPlayerViewProps) {
     setIsMuted(video.muted);
   };
 
-  const handleSeek = (nextValue: number) => {
+  const handleSeekCommit = (nextValue: number) => {
+    setScrubTime(null);
     const video = videoRef.current;
     if (!video) return;
     bumpControls();
+    setIsBuffering(true);
     video.currentTime = nextValue;
     setCurrentTime(nextValue);
   };
@@ -336,6 +339,7 @@ export function VideoPlayerView({ movie, onBack }: VideoPlayerViewProps) {
               key={`${movie.id}-${reloadKey}`}
               ref={videoRef}
               playsInline
+              preload="auto"
               controls={false}
               onClick={togglePlay}
               onPlay={() => {
@@ -347,6 +351,8 @@ export function VideoPlayerView({ movie, onBack }: VideoPlayerViewProps) {
                 setIsPlaying(false);
                 setShowControls(true);
               }}
+              onSeeking={() => setIsBuffering(true)}
+              onSeeked={() => setIsBuffering(false)}
               onWaiting={() => setIsBuffering(true)}
               onCanPlay={() => setIsBuffering(false)}
               onLoadedMetadata={(e) => {
@@ -355,7 +361,9 @@ export function VideoPlayerView({ movie, onBack }: VideoPlayerViewProps) {
                 setIsBuffering(false);
               }}
               onTimeUpdate={(e) => {
-                setCurrentTime(e.currentTarget.currentTime);
+                if (scrubTime === null) {
+                  setCurrentTime(e.currentTarget.currentTime);
+                }
               }}
               onError={() => {
                 if (streamKind === 'pending') return;
@@ -399,12 +407,20 @@ export function VideoPlayerView({ movie, onBack }: VideoPlayerViewProps) {
                 min={0}
                 max={duration > 0 ? duration : 100}
                 step={1}
-                value={Math.min(currentTime, duration > 0 ? duration : 100)}
-                onChange={(e) => handleSeek(Number(e.target.value))}
+                value={Math.min(
+                  scrubTime !== null ? scrubTime : currentTime,
+                  duration > 0 ? duration : 100
+                )}
+                onChange={(e) => {
+                  bumpControls();
+                  setScrubTime(Number(e.target.value));
+                }}
+                onPointerUp={(e) => handleSeekCommit(Number(e.currentTarget.value))}
+                onKeyUp={(e) => handleSeekCommit(Number(e.currentTarget.value))}
                 className="w-full h-3.5 accent-[#2563EB] cursor-pointer"
               />
               <div className="flex items-center justify-between text-sm sm:text-base font-medium text-neutral-300 tabular-nums">
-                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(scrubTime !== null ? scrubTime : currentTime)}</span>
                 <span>{duration > 0 ? formatTime(duration) : '--:--'}</span>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { Film } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminModal } from './components/AdminModal';
 import { MovieCard } from './components/MovieCard';
 import { VideoPlayerView } from './components/VideoPlayerView';
@@ -138,11 +138,47 @@ export default function App() {
     return Array.from(byId.values());
   }, [firestoreMovies, liveFolderMovies]);
 
+  const openMovie = useCallback((chosen: MovieItem) => {
+    if (!window.history.state?.watchingMovie) {
+      window.history.pushState({ watchingMovie: true, movieId: chosen.id }, '');
+    }
+    if (
+      !document.fullscreenElement &&
+      document.documentElement.requestFullscreen
+    ) {
+      void document.documentElement.requestFullscreen().catch(() => {});
+    }
+    setSelectedMovie(chosen);
+  }, []);
+
+  const closeMovieToHome = useCallback(() => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+    }
+    if (window.history.state?.watchingMovie) {
+      window.history.back();
+    } else {
+      setSelectedMovie(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (document.fullscreenElement) {
+        void document.exitFullscreen().catch(() => {});
+      }
+      setSelectedMovie(null);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   if (selectedMovie) {
     return (
       <VideoPlayerView
         movie={selectedMovie}
-        onBack={() => setSelectedMovie(null)}
+        onBack={closeMovieToHome}
       />
     );
   }
@@ -198,17 +234,7 @@ export default function App() {
                 <MovieCard
                   key={movie.id}
                   movie={movie}
-                  onWatch={(chosen) => {
-                    if (
-                      !document.fullscreenElement &&
-                      document.documentElement.requestFullscreen
-                    ) {
-                      void document.documentElement
-                        .requestFullscreen()
-                        .catch(() => {});
-                    }
-                    setSelectedMovie(chosen);
-                  }}
+                  onWatch={openMovie}
                 />
               ))}
             </div>

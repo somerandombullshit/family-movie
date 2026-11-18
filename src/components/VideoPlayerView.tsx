@@ -93,13 +93,33 @@ export function VideoPlayerView({ movie, onBack }: VideoPlayerViewProps) {
     fetch(getMovieProbeUrl(movie))
       .then(async (res) => {
         if (cancelled) return;
-        const data = (await res.json().catch(() => ({}))) as {
+        let data: {
           ready?: boolean;
           streamKind?: 'mp4' | 'hls' | 'gdrive_embed';
           previewUrl?: string;
           error?: string;
-        };
+        } | null = null;
+        try {
+          data = (await res.json()) as {
+            ready?: boolean;
+            streamKind?: 'mp4' | 'hls' | 'gdrive_embed';
+            previewUrl?: string;
+            error?: string;
+          };
+        } catch {
+          data = null;
+        }
+
+        if (!data) {
+          setStreamKind('mp4');
+          return;
+        }
+
         if (!res.ok || !data.ready) {
+          if (movie.sourceType === 'gdrive_file' && !data.error) {
+            setStreamKind('mp4');
+            return;
+          }
           setErrorMessage(
             data.error ||
               'This movie could not start right now. Please tap Try Again.'
@@ -339,6 +359,11 @@ export function VideoPlayerView({ movie, onBack }: VideoPlayerViewProps) {
               }}
               onError={() => {
                 if (streamKind === 'pending') return;
+                if (movie.sourceType === 'gdrive_file' && embedPreviewUrl) {
+                  setIsBuffering(false);
+                  setStreamKind('gdrive_embed');
+                  return;
+                }
                 setIsBuffering(false);
                 setErrorMessage(
                   'This video format could not play directly in your browser. For best results, upload MP4 files to Google Drive.'

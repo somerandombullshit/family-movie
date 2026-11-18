@@ -11,24 +11,18 @@ import {
   rewriteM3u8Playlist,
   sendJson,
   setTeraBoxSessionConfig,
-} from '../../lib/cloud-media';
+} from '../lib/cloud-media';
 
 type VercelRequest = IncomingMessage & {
   body?: unknown;
   query?: Record<string, string | string[] | undefined>;
 };
 
-function getActionName(req: VercelRequest): string {
-  const fromQuery = req.query?.action;
-  if (typeof fromQuery === 'string' && fromQuery) return fromQuery;
-  if (Array.isArray(fromQuery) && fromQuery[0]) return fromQuery[0];
-  const pathname = new URL(req.url || '/', 'http://localhost').pathname;
-  return pathname.split('/').filter(Boolean).pop() || '';
-}
-
 export default async function handler(req: VercelRequest, res: ServerResponse): Promise<void> {
-  const action = getActionName(req);
   const query = getQueryParams(req);
+  const qAction = query.get('action') || (typeof req.query?.action === 'string' ? req.query.action : '');
+  const pathname = new URL(req.url || '/', 'http://localhost').pathname;
+  const action = qAction || pathname.split('/').filter(Boolean).pop() || '';
 
   if (action === 'session-config') {
     if (req.method !== 'POST') {

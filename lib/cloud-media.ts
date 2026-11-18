@@ -397,15 +397,13 @@ export async function resolveGoogleDriveDirectUrl(fileId: string): Promise<strin
     },
   });
 
-  const location = res.headers.get('location');
-  if (location && res.status >= 300 && res.status < 400) {
+  if (res.status >= 300 && res.status < 400) {
     await res.body?.cancel().catch(() => {});
-    return location;
+    return baseDownloadUrl;
   }
 
   const ctype = (res.headers.get('content-type') || '').toLowerCase();
   if (ctype.includes('text/html')) {
-    const cookies = extractCookiesFromHeaders(res.headers);
     const html = await res.text();
     const formInputs = parseHiddenFormInputs(html);
     const actionMatch = html.match(/<form[^>]+action=["']([^"']+)["']/i);
@@ -420,24 +418,6 @@ export async function resolveGoogleDriveDirectUrl(fileId: string): Promise<strin
     target.searchParams.set('export', 'download');
     if (confirmParam) target.searchParams.set('confirm', confirmParam);
     if (uuidParam) target.searchParams.set('uuid', uuidParam);
-
-    const retryHeaders: Record<string, string> = {
-      'User-Agent': BROWSER_UA,
-      Range: 'bytes=0-1',
-    };
-    const cookieStr = serializeCookieJar(cookies);
-    if (cookieStr) retryHeaders['Cookie'] = cookieStr;
-
-    const hop = await fetch(target.toString(), {
-      method: 'GET',
-      redirect: 'manual',
-      headers: retryHeaders,
-    });
-    const hopLocation = hop.headers.get('location');
-    await hop.body?.cancel().catch(() => {});
-    if (hopLocation && hop.status >= 300 && hop.status < 400) {
-      return hopLocation;
-    }
 
     return target.toString();
   }
